@@ -17,10 +17,8 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
-//! Hardcoded values (not recommended for production)
-//! Highly recommended to move all Firecrawl API calls to the backend (e.g. Next.js API route)
-const FIRECRAWL_API_URL = "https://api.firecrawl.dev"; // Replace with your actual API URL whether it is local or using Firecrawl Cloud
-const FIRECRAWL_API_KEY = "fc-YOUR_API_KEY"; // Replace with your actual API key
+const FIRECRAWL_API_URL = import.meta.env.VITE_FIRECRAWL_API_URL || "http://localhost:3002";
+const FIRECRAWL_API_KEY = import.meta.env.VITE_FIRECRAWL_API_KEY; // Can be undefined for self-hosted
 
 interface FormData {
   url: string;
@@ -177,12 +175,16 @@ export default function FirecrawlComponentV1() {
             formats: ["markdown"],
           };
 
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (FIRECRAWL_API_KEY) {
+        headers["Authorization"] = `Bearer ${FIRECRAWL_API_KEY}`;
+      }
+
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: headers,
         body: JSON.stringify(requestBody),
       });
 
@@ -264,14 +266,18 @@ export default function FirecrawlComponentV1() {
     setScrapingSelectedLoading(true);
     const newScrapeResults: Record<string, ScrapeResult> = {};
 
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    if (FIRECRAWL_API_KEY) {
+      headers["Authorization"] = `Bearer ${FIRECRAWL_API_KEY}`;
+    }
+
     for (const [index, url] of selectedUrls.entries()) {
       try {
         const response = await fetch(`${FIRECRAWL_API_URL}/v1/scrape`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-            "Content-Type": "application/json",
-          },
+          headers: headers,
           body: JSON.stringify({
             url: url,
             formats: ["markdown"],

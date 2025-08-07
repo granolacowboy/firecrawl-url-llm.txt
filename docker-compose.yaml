@@ -97,6 +97,14 @@ services:
       - backend
     command: redis-server --bind 0.0.0.0
 
+  ingestion-ui:
+    build:
+      context: apps/ui/ingestion-ui
+    ports:
+      - "3003:80"
+    networks:
+      - backend
+
 networks:
   backend:
     driver: bridge

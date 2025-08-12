@@ -1,0 +1,18 @@
+# This file is for local development and overrides docker-compose.yaml
+# to build services from local source code instead of using pre-built images.
+#
+# To use it, run:
+# docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build
+
+services:
+  playwright-service:
+    build: apps/playwright-service-ts
+    # This overrides the 'image' key in the main docker-compose.yaml
+
+  api:
+    build: apps/api
+    # This overrides the 'image' key inherited from x-common-service
+
+  worker:
+    build: apps/api
+    # This overrides the 'image' key inherited from x-common-service

@@ -33,7 +33,18 @@ Self-hosting Firecrawl is ideal for those who need full control over their scrap
 
 2.  **Set Environment Variables**
 
-    Create a `.env` file by copying the provided example file. This file will contain all the necessary configurations for your Firecrawl instance.
+    We've created a fun, interactive script to help you set up your configuration! To get started, run:
+
+    ```bash
+    pnpm install
+    pnpm run setup
+    ```
+
+    This script will guide you through the essential settings and generate a `.env` file for you.
+
+    **Manual Setup (Alternative)**
+
+    If you prefer to set things up manually, you can create a `.env` file by copying the example file:
 
     ```bash
     cp .env.example .env

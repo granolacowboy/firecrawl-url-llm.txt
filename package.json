@@ -1,0 +1,11 @@
+{
+  "name": "firecrawl-repo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup.mjs"
+  },
+  "devDependencies": {
+    "inquirer": "^12.9.1"
+  }
+}

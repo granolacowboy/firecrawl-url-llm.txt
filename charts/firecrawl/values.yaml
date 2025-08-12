@@ -1,0 +1,123 @@
+# Default values for firecrawl.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+# - name: my-docker-registry-secret
+
+# -- API Deployment settings
+api:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/mendableai/firecrawl
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  port: 3002
+  terminationGracePeriodSeconds: 180
+  service:
+    type: ClusterIP
+    port: 3002
+  resources:
+    requests:
+      memory: "4G"
+      cpu: "2000m"
+    limits:
+      memory: "6G"
+      cpu: "2000m"
+
+# -- Worker Deployment settings
+worker:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/mendableai/firecrawl
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  port: 3005
+  terminationGracePeriodSeconds: 60
+  resources:
+    requests:
+      memory: "3G"
+      cpu: "1000m"
+    limits:
+      memory: "4G"
+      cpu: "1000m"
+
+# -- Playwright Service settings
+playwright:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/mendableai/playwright-service
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  port: 3000
+  service:
+    type: ClusterIP
+    port: 3000
+  resources: {}
+  #  requests:
+  #    cpu: 100m
+  #    memory: 128Mi
+  #  limits:
+  #    cpu: 100m
+  #    memory: 128Mi
+
+# -- In-cluster Redis settings
+redis:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: redis
+    pullPolicy: IfNotPresent
+    tag: "alpine"
+  service:
+    type: ClusterIP
+    port: 6379
+  resources: {}
+  #  requests:
+  #    cpu: 100m
+  #    memory: 128Mi
+  #  limits:
+  #    cpu: 100m
+  #    memory: 128Mi
+
+# -- Application Configuration (populates the -config ConfigMap)
+config:
+  host: "0.0.0.0"
+  # URLs for internal services. By default, if the in-cluster service is enabled,
+  # the template will construct the correct internal URL.
+  # Provide a full URL here to override, e.g., to use an external Redis.
+  redisUrl: ""
+  redisRateLimitUrl: ""
+  playwrightUrl: ""
+  useDbAuthentication: "false"
+  sentryEnvironment: "production"
+  env: "production"
+  loggingLevel: "DEBUG"
+
+# -- Extra key-value pairs to add to the ConfigMap
+extraConfig: {}
+#  my-key: my-value
+
+# -- Secrets management
+# By default, a new secret is created with the values below.
+secrets:
+  create: true
+  # If you want to use an existing secret, set create=false and provide the name.
+  # existingSecret: my-existing-secret
+  values:
+    OPENAI_API_KEY: ""
+    SLACK_WEBHOOK_URL: ""
+    LLAMAPARSE_API_KEY: ""
+    BULL_AUTH_KEY: "CHANGEME"
+    TEST_API_KEY: ""
+    POSTHOG_API_KEY: ""
+    POSTHOG_HOST: ""
+    STRIPE_PRICE_ID_STANDARD: ""
+    STRIPE_PRICE_ID_SCALE: ""
+    FIRE_ENGINE_BETA_URL: ""
+    REDIS_PASSWORD: ""

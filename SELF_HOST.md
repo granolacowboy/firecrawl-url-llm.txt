@@ -153,6 +153,8 @@ API requests to the Firecrawl instance timeout or return no response.
 
 By addressing these common issues, you can ensure a smoother setup and operation of your self-hosted Firecrawl instance.
 
-## Install Firecrawl on a Kubernetes Cluster (Simple Version)
+## Deploying on Kubernetes with Helm
 
-Read the [examples/kubernetes/cluster-install/README.md](https://github.com/mendableai/firecrawl/blob/main/examples/kubernetes/cluster-install/README.md) for instructions on how to install Firecrawl on a Kubernetes Cluster.
+For deploying Firecrawl on Kubernetes, we recommend using the provided Helm chart, which simplifies deployment and configuration.
+
+For detailed instructions, please see the [Firecrawl Helm Chart README](./charts/firecrawl/README.md).

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "firecrawl.fullname" . }}-test-connection"
+  labels:
+    {{- include "firecrawl.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:latest
+      command: ['curl']
+      args: ['-v', '{{ include "firecrawl.fullname" . }}-api:{{ .Values.api.service.port }}/v0/health/liveness']
+  restartPolicy: Never

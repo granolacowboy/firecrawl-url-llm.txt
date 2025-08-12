@@ -63,9 +63,10 @@ USE_DB_AUTHENTICATION=false
 # OPENAI_API_KEY=
 
 ## === Proxy ===
-# PROXY_SERVER can be a full URL (e.g. http://0.1.2.3:1234) or just an IP and port combo (e.g. 0.1.2.3:1234)
+# To rotate proxies, provide a comma-separated list of proxy URLs. A random proxy will be selected for each request.
+# PROXY_SERVERS can be a full URL (e.g. http://0.1.2.3:1234) or just an IP and port combo (e.g. 0.1.2.3:1234)
 # Do not uncomment PROXY_USERNAME and PROXY_PASSWORD if your proxy is unauthenticated
-# PROXY_SERVER=
+# PROXY_SERVERS=
 # PROXY_USERNAME=
 # PROXY_PASSWORD=
 

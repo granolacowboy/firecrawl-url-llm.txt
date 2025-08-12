@@ -14,7 +14,7 @@ app.use(bodyParser.json());
 
 const BLOCK_MEDIA = (process.env.BLOCK_MEDIA || 'False').toUpperCase() === 'TRUE';
 
-const PROXY_SERVER = process.env.PROXY_SERVER || null;
+const PROXY_SERVERS = process.env.PROXY_SERVERS || null;
 const PROXY_USERNAME = process.env.PROXY_USERNAME || null;
 const PROXY_PASSWORD = process.env.PROXY_PASSWORD || null;
 
@@ -43,9 +43,11 @@ interface UrlModel {
 }
 
 let browser: Browser;
-let context: BrowserContext;
 
 const initializeBrowser = async () => {
+  if (browser) {
+    return;
+  }
   browser = await chromium.launch({
     headless: true,
     args: [
@@ -59,7 +61,9 @@ const initializeBrowser = async () => {
       '--disable-gpu'
     ]
   });
+};
 
+const createBrowserContext = async (): Promise<BrowserContext> => {
   const userAgent = new UserAgent().toString();
   const viewport = { width: 1280, height: 800 };
 
@@ -68,43 +72,43 @@ const initializeBrowser = async () => {
     viewport,
   };
 
-  if (PROXY_SERVER && PROXY_USERNAME && PROXY_PASSWORD) {
-    contextOptions.proxy = {
-      server: PROXY_SERVER,
-      username: PROXY_USERNAME,
-      password: PROXY_PASSWORD,
-    };
-  } else if (PROXY_SERVER) {
-    contextOptions.proxy = {
-      server: PROXY_SERVER,
-    };
+  if (PROXY_SERVERS) {
+    const proxyList = PROXY_SERVERS.split(',').map(s => s.trim());
+    const randomProxy = proxyList[Math.floor(Math.random() * proxyList.length)];
+
+    if (PROXY_USERNAME && PROXY_PASSWORD) {
+      contextOptions.proxy = {
+        server: randomProxy,
+        username: PROXY_USERNAME,
+        password: PROXY_PASSWORD,
+      };
+    } else {
+      contextOptions.proxy = {
+        server: randomProxy,
+      };
+    }
   }
 
-  context = await browser.newContext(contextOptions);
+  const context = await browser.newContext(contextOptions);
 
   if (BLOCK_MEDIA) {
-    await context.route('**/*.{png,jpg,jpeg,gif,svg,mp3,mp4,avi,flac,ogg,wav,webm}', async (route: Route, request: PlaywrightRequest) => {
-      await route.abort();
-    });
+    await context.route('**/*.{png,jpg,jpeg,gif,svg,mp3,mp4,avi,flac,ogg,wav,webm}', (route) => route.abort());
   }
 
-  // Intercept all requests to avoid loading ads
-  await context.route('**/*', (route: Route, request: PlaywrightRequest) => {
-    const requestUrl = new URL(request.url());
+  await context.route('**/*', (route) => {
+    const requestUrl = new URL(route.request().url());
     const hostname = requestUrl.hostname;
-
     if (AD_SERVING_DOMAINS.some(domain => hostname.includes(domain))) {
-      console.log(hostname);
       return route.abort();
     }
     return route.continue();
   });
+
+  return context;
 };
 
+
 const shutdownBrowser = async () => {
-  if (context) {
-    await context.close();
-  }
   if (browser) {
     await browser.close();
   }
@@ -154,90 +158,79 @@ const scrapePage = async (page: Page, url: string, waitUntil: 'load' | 'networki
 };
 
 app.get('/health', async (req: Request, res: Response) => {
+  let context: BrowserContext | null = null;
   try {
-    if (!browser || !context) {
-      await initializeBrowser();
-    }
-    
-    const testPage = await context.newPage();
-    await testPage.close();
-    
+    await initializeBrowser();
+    context = await createBrowserContext();
+    const page = await context.newPage();
+    await page.close();
     res.status(200).json({ status: 'healthy' });
   } catch (error) {
     console.error('Health check failed:', error);
-    res.status(503).json({ 
-      status: 'unhealthy', 
-      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     });
+  } finally {
+    if (context) {
+      await context.close();
+    }
   }
 });
 
 app.post('/scrape', async (req: Request, res: Response) => {
   const { url, wait_after_load = 0, timeout = 15000, headers, check_selector }: UrlModel = req.body;
 
-  console.log(`================= Scrape Request =================`);
-  console.log(`URL: ${url}`);
-  console.log(`Wait After Load: ${wait_after_load}`);
-  console.log(`Timeout: ${timeout}`);
-  console.log(`Headers: ${headers ? JSON.stringify(headers) : 'None'}`);
-  console.log(`Check Selector: ${check_selector ? check_selector : 'None'}`);
-  console.log(`==================================================`);
-
   if (!url) {
     return res.status(400).json({ error: 'URL is required' });
   }
-
   if (!isValidUrl(url)) {
     return res.status(400).json({ error: 'Invalid URL' });
   }
 
-  if (!PROXY_SERVER) {
-    console.warn('⚠️ WARNING: No proxy server provided. Your IP address may be blocked.');
+  if (!PROXY_SERVERS) {
+    console.warn('⚠️ WARNING: No proxy servers provided. Your IP address may be blocked.');
   }
 
-  if (!browser || !context) {
-    await initializeBrowser();
-  }
-
-  const page = await context.newPage();
-
-  // Set headers if provided
-  if (headers) {
-    await page.setExtraHTTPHeaders(headers);
-  }
-
-  let result: Awaited<ReturnType<typeof scrapePage>>;
+  let context: BrowserContext | null = null;
   try {
-    // Strategy 1: Normal
-    console.log('Attempting strategy 1: Normal load');
-    result = await scrapePage(page, url, 'load', wait_after_load, timeout, check_selector);
-  } catch (error) {
-    console.log('Strategy 1 failed, attempting strategy 2: Wait until networkidle');
+    await initializeBrowser();
+    context = await createBrowserContext();
+    const page = await context.newPage();
+
+    if (headers) {
+      await page.setExtraHTTPHeaders(headers);
+    }
+
+    let result: Awaited<ReturnType<typeof scrapePage>>;
     try {
-      // Strategy 2: Wait until networkidle
+      result = await scrapePage(page, url, 'load', wait_after_load, timeout, check_selector);
+    } catch (error) {
+      console.log('Strategy 1 failed, trying strategy 2: Wait until networkidle');
       result = await scrapePage(page, url, 'networkidle', wait_after_load, timeout, check_selector);
-    } catch (finalError) {
-      await page.close();
-      return res.status(500).json({ error: 'An error occurred while fetching the page.' });
+    }
+
+    const pageError = result.status !== 200 ? getError(result.status) : undefined;
+    if (pageError) {
+      console.log(`🚨 Scrape failed with status code: ${result.status} ${pageError}`);
+    } else {
+      console.log(`✅ Scrape successful!`);
+    }
+
+    res.json({
+      content: result.content,
+      pageStatusCode: result.status,
+      contentType: result.contentType,
+      ...(pageError && { pageError })
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'An error occurred while fetching the page.' });
+  } finally {
+    if (context) {
+      await context.close();
     }
   }
-
-  const pageError = result.status !== 200 ? getError(result.status) : undefined;
-
-  if (!pageError) {
-    console.log(`✅ Scrape successful!`);
-  } else {
-    console.log(`🚨 Scrape failed with status code: ${result.status} ${pageError}`);
-  }
-
-  await page.close();
-
-  res.json({
-    content: result.content,
-    pageStatusCode: result.status,
-    contentType: result.contentType,
-    ...(pageError && { pageError })
-  });
 });
 
 app.listen(port, () => {
